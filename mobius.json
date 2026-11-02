@@ -1,0 +1,35 @@
+{
+  "id": "location-viewer",
+  "name": "Location",
+  "version": "0.1.0",
+  "description": "See your tracked location history on a map and timeline, grouped into sessions.",
+  "entry": "index.jsx",
+  "icon": "icon.png",
+  "offline_capable": false,
+  "permissions": {
+    "location_history_read": true
+  },
+  "capabilities": {
+    "location.tracking": {
+      "version": 1,
+      "reason": "Turn location tracking on or off and choose how often a point is recorded, from the Möbius phone app."
+    }
+  },
+  "source_files": [],
+  "store": {
+    "tagline": "See where your phone has been, on a map.",
+    "description": "Location shows the history recorded by the Möbius phone app: every point on a map, joined into a track for each trip, with your latest position highlighted. Below the map, a timeline lists each session's points with time, accuracy, speed and altitude, and a link to open any point on the OpenStreetMap website. Drag to move the map, and pinch or scroll to zoom.\n\nYour positions stay on your own Möbius. Only the map background is loaded from OpenStreetMap, through your Möbius: OpenStreetMap sees which area of the map is shown, never your recorded points. Opening a point on OpenStreetMap shares just that one point with their website.\n\nWhen you open Location in the Möbius phone app, you can turn tracking on or off and choose how often a point is recorded, right from the app. Once on, the phone keeps recording in the background, with your phone's location indicator showing. On other devices, Location shows whether tracking is on but can't change it.",
+    "screenshots": [
+      {
+        "src": "static/store/f9a2377db0241018.webp",
+        "alt": "Location app on a wide screen: three walking tracks across central Sarajevo on a map, with stats for last seen, points, sessions and time span.",
+        "label": "Every trip on one map, each in its own colour."
+      },
+      {
+        "src": "static/store/61f2a4973c25651e.webp",
+        "alt": "Location app on a phone: stats cards, a map of Sarajevo, and a timeline of recorded points.",
+        "label": "A timeline of each point, with speed, accuracy and altitude."
+      }
+    ]
+  }
+}
