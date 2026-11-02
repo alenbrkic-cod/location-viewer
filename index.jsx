@@ -494,6 +494,21 @@ function osmLink(p) {
   return `https://www.openstreetmap.org/?mlat=${la}&mlon=${lo}#map=17/${la}/${lo}`
 }
 
+// The phone app's tracking, through the host's `location.tracking` capability.
+// Resolves with { available, enabled, status, options }; start, stop and
+// set-options reject with code 'unavailable' outside the phone app.
+function trackingCall(operation, extra) {
+  const caps = window.mobius?.capabilities
+  if (!caps?.invoke) return Promise.reject(Object.assign(new Error('unavailable'), { code: 'unavailable' }))
+  return caps.invoke('location.tracking', { operation, ...extra })
+}
+
+function trackingErrorNote(e, what) {
+  if (e?.code === 'unavailable') return 'Tracking runs in the Möbius phone app. Open Möbius there to change it.'
+  if (e?.code === 'stop_failed') return "The phone couldn't confirm that tracking stopped, so it is still on. Try again."
+  return `Couldn't ${what}: ${e?.message || 'unknown error'}`
+}
+
 export default function App({ token }) {
   const [positions, setPositions] = useState(null)
   const [tracking, setTracking] = useState(null)
@@ -509,9 +524,10 @@ export default function App({ token }) {
 
   useEffect(() => {
     let live = true
-    const control = window.mobius?.location
-    if (!control?.get) { setCanControl(false); return undefined }
-    control.get().then((res) => { if (live) setCanControl(res?.available === true) })
+    trackingCall('get').then(
+      (res) => { if (live) setCanControl(res?.available === true) },
+      () => { if (live) setCanControl(false) },
+    )
     return () => { live = false }
   }, [])
   const [sessionOpen, setSessionOpen] = useState({}) // startMs -> explicit open/closed override
@@ -542,55 +558,39 @@ export default function App({ token }) {
   useEffect(() => { load() }, [load])
 
   const toggleTracking = useCallback(async () => {
-    const control = window.mobius?.location
-    if (!control) {
-      setNote('Tracking controls need a Möbius update — reload and try again.')
-      return
-    }
     const turningOn = !(tracking && tracking.enabled)
     setToggling(true)
     setNote(null)
     try {
-      const res = await (turningOn ? control.start() : control.stop())
-      if (res && res.error) {
-        setNote(`Couldn't change tracking: ${res.error}`)
-      } else if (res && typeof res.enabled === 'boolean') {
-        setTracking((t) => ({ ...(t || {}), enabled: res.enabled }))
-        if (turningOn && res.enabled !== true) {
-          if (res.available === false) {
-            setNote('Tracking runs in the Möbius mobile app. Open Möbius there to turn it on.')
-          } else if (res.status === 'denied') {
-            setNote('Your device denied location permission. Enable it in your system settings, then try again.')
-          } else if (res.status === 'disabled') {
-            setNote('Location services are turned off on your device.')
-          } else {
-            setNote('Tracking could not start on this device.')
-          }
+      const res = await trackingCall(turningOn ? 'start' : 'stop')
+      setTracking((t) => ({ ...(t || {}), enabled: res.enabled === true }))
+      if (turningOn && res.enabled !== true) {
+        if (res.status === 'denied') {
+          setNote('Your device denied location permission. Enable it in your system settings, then try again.')
+        } else if (res.status === 'disabled') {
+          setNote('Location services are turned off on your device.')
+        } else {
+          setNote('Tracking could not start on this device.')
         }
-      } else {
-        setNote('Tracking controls are only available inside Möbius.')
       }
+    } catch (e) {
+      setNote(trackingErrorNote(e, 'change tracking'))
     } finally {
       setToggling(false)
     }
   }, [tracking])
 
   const applyInterval = useCallback(async (ms) => {
-    const control = window.mobius?.location
     setTracking((t) => ({ ...(t || {}), options: { ...(t?.options || {}), interval: ms } }))
-    if (!control?.setOptions) {
-      setNote('Interval controls need a Möbius update — reload and try again.')
-      return
-    }
     setSavingInterval(true)
     setNote(null)
     try {
-      const res = await control.setOptions({ interval: ms })
-      if (res && res.error) {
-        setNote(`Couldn't change the interval: ${res.error}`)
-      } else if (res && res.options && Number.isFinite(res.options.interval)) {
+      const res = await trackingCall('set-options', { options: { interval: ms } })
+      if (res?.options && Number.isFinite(res.options.interval)) {
         setTracking((t) => ({ ...(t || {}), options: res.options }))
       }
+    } catch (e) {
+      setNote(trackingErrorNote(e, 'change the interval'))
     } finally {
       setSavingInterval(false)
     }
